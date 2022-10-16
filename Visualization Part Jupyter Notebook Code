@@ -82,6 +82,71 @@ X_train = df[features]
  target = "price_aprox_usd"
 y_train = df[target]
 
+# From sklearn.metrics imported mean_absolute_error
+y_mean = y_train.mean()
+y_pred_baseline = [y_mean]*len(y_train)
+mae_baseline = mean_absolute_error(y_train, y_pred_baseline)
+print("Mean apt price", round(y_mean, 2))
+print("Baseline MAE:", round(mae_baseline, 2))
+
+
+# Building my model
+imputer = SimpleImputer()
+imputer.fit(X_train)
+XT_train = imputer.transform(X_train)
+pd.DataFrame(XT_train, columns=X_train.columns).info()
+model = make_pipeline(
+    SimpleImputer(),
+    LinearRegression())
+model.fit(X_train, y_train)
+
+# Using the model's predict method created a list of predictions for the observations in feature matrix
+y_pred_training = model.predict(X_train)
+mae_training = mean_absolute_error(y_pred_training, y_train)
+print("Training MAE:", round(mae_training, 2))
+X_test = pd.read_csv("data/buenos-aires-test-features.csv")[features]
+y_pred_test = pd.Series(model.predict(X_test))
+y_pred_test.head()
+
+# Extracted the intercept and coefficients for the model
+intercept = model.named_steps["linearregression"].intercept_.round(2)
+coefficients = model.named_steps["linearregression"].coef_.round(2)
+print(
+    f"price = {intercept} + ({coefficients[0]} * longitude) + ({coefficients[1]} * latitude)"
+)
+
+# # Create 3D scatter plot
+fig = px.scatter_3d(
+    df,
+    x="lon",
+    y="lat",
+    z="price_aprox_usd",
+    labels={"lon": "longitude", "lat": "latitude", "price_aprox_usd": "price"},
+    width=600,
+    height=500,
+)
+
+# Created x and y coordinates for model representation
+x_plane = np.linspace(df["lon"].min(), df["lon"].max(), 10)
+y_plane = np.linspace(df["lat"].min(), df["lat"].max(), 10)
+xx, yy = np.meshgrid(x_plane, y_plane)
+
+# Use model to predict z coordinates
+z_plane = model.predict(pd.DataFrame({"lon": x_plane, "lat": y_plane}))
+zz = np.tile(z_plane, (10, 1))
+
+# Add plane to figure
+fig.add_trace(go.Surface(x=xx, y=yy, z=zz))
+
+# Refine formatting
+fig.update_traces(
+    marker={"size": 4, "line": {"width": 2, "color": "DarkSlateGrey"}},
+    selector={"mode": "markers"},
+)
+
+# Display figure
+fig.show()
+
 
     
     
